@@ -607,6 +607,12 @@ footer { border-top: 3px double var(--line); }
   .masthead { grid-template-columns: 1fr; }
   .patchbox { width: 100%; }
 }
+/* before anyone is added */
+.welcome { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; padding-block: 8px 24px; }
+.welcome .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 28px; width: 100%; margin-top: 6px; }
+.welcome .cols3 > div { border-top: 3px double var(--line); padding-top: 12px; }
+.welcome .cols3 p { color: var(--muted); font-size: 14.5px; }
+@media (max-width: 760px) { .welcome .cols3 { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -683,9 +689,10 @@ footer { border-top: 3px double var(--line); }
 
   <div class="since" id="since" hidden></div>
 
-  <div class="example" id="example">
-    <strong>Example data</strong> &nbsp;This is a made-up duo so you can see what the paper looks like. Add a player above to see your own.
+  <div class="example" id="example" hidden>
+    <strong>Example data</strong> &nbsp;This is a made-up duo so you can see what the paper looks like. Add a player above to see your own, or <button type="button" class="linkbtn" id="exampleOff">put the example away</button>.
   </div>
+  <div class="actions" id="blankBar" hidden><button type="button" class="linkbtn" id="blankBack">← Back to the start</button></div>
 
   <main id="report"></main>
 
@@ -2206,7 +2213,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "20";
+  const VERSION = "21";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -2308,12 +2315,12 @@ if (typeof document !== "undefined") (function () {
         <button type="button" class="x" data-drop="${p.id}" aria-label="Remove ${name}" title="Remove ${name}">×</button></span>`;
     }).join("");
     const nm = (id) => esc((inRoster(id) || {}).name || "Player");
-    $("rosterNote").innerHTML = !state.roster.length ? "Nobody yet. Add yourself below to replace the example."
+    $("rosterNote").innerHTML = !state.roster.length ? "Nobody yet. Add yourself below."
       : shown.length === 2 ? `Comparing ${nm(shown[0])} and ${nm(shown[1])} as a duo. Click either to see the other alone${state.roster.length > 2 ? `, or another player to swap them in for ${nm(shown[1])}` : ""}.`
       : shown.length === 1 ? (state.roster.length > 1 ? `Showing ${nm(shown[0])} alone. Click a second player to compare them as a duo.` : `Showing ${nm(shown[0])} alone. Add a second player to open the duo pages.`)
       : "Click a player to show them.";
     $("forget").hidden = !state.roster.length;
-    $("refresh").hidden = !shown.length || !d || d.example;
+    $("refresh").hidden = !shown.length || !!(d && d.example);
     $("go").textContent = state.roster.length ? "Add player" : "Add yourself";
   }
   /** Tabs that need two players are put away when only one is on show. */
@@ -2368,6 +2375,7 @@ if (typeof document !== "undefined") (function () {
     else setMsg(`${inRoster(id).name} is already in your players.`);
     const before = [...state.active];
     pick(id);
+    if (!state.data) state.tab = "report"; // a first player starts on the front page, wherever the blank page was left
     $("playerAdd").value = "";
     persist(); renderRoster();
     const ok = await load();
@@ -2376,7 +2384,7 @@ if (typeof document !== "undefined") (function () {
       state.roster = state.roster.filter((p) => p.id !== id);
       state.active = before.filter((x) => inRoster(x));
       persist(); renderRoster();
-      if (state.active.length) await load(false, true); else if (!state.roster.length) showExample();
+      if (state.active.length) await load(false, true); else if (!state.roster.length) showBlank();
     }
   }
   function togglePlayer(id) {
@@ -2396,7 +2404,7 @@ if (typeof document !== "undefined") (function () {
     state.cache.delete(id);
     if (!state.active.length && state.roster.length) state.active = [state.roster[0].id];
     persist(); renderRoster();
-    if (!state.roster.length) { store.del(KEY); showExample(); } else if (wasShown) load();
+    if (!state.roster.length) { store.del(KEY); showBlank(); } else if (wasShown) load();
   }
   /**
    * Fetch whatever isn't in hand for the players on show, then draw. Returns whether it worked.
@@ -2405,8 +2413,9 @@ if (typeof document !== "undefined") (function () {
   async function load(fresh, quiet) {
     if (state.busy) return false;
     const ids = shownIds();
-    if (!ids.length) { showExample(); return true; }
-    state.busy = true; $("go").disabled = true;
+    if (!ids.length) { showBlank(); return true; }
+    state.busy = true; $("go").disabled = true; state.loadFailed = false;
+    if (!state.data) renderBlank();
     if (!quiet) setStatus(ids.some((id) => fresh || !state.cache.has(id)) ? "Fetching matches…" : "");
     const wasSolo = state.data && !state.data.example ? !!state.data.solo : null;
     try {
@@ -2425,16 +2434,16 @@ if (typeof document !== "undefined") (function () {
       store.set(KEY, { a: idA, b: idB || null });
       noteVisit(idA, idB || null);
       persist();
-      $("example").hidden = true;
       if (!quiet) setStatus("");
       syncTabs(); renderRoster();
       // arriving at a duo from one player opens the duo's front door; otherwise stay put if the tab still exists
       if (!state.data.solo && wasSolo === true) setTab("report");
       else if (!tabAllowed(state.tab)) setTab(state.data.solo ? "player" : "report");
-      else render();
+      else setTab(state.tab);
       return true;
     } catch (e) {
       setStatus(e.message || "Something went wrong.", true);
+      if (!state.data) { state.loadFailed = true; renderBlank(); }
       return false;
     } finally {
       state.busy = false; $("go").disabled = false;
@@ -4104,6 +4113,10 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["21", "9 October 2026", [
+      "The page now starts blank until a player is added, instead of showing a made-up duo. The example is still there behind a \"See it with a made-up duo\" link.",
+      "The latest patch box and the patch notes work before anyone is added.",
+    ]],
     ["20", "9 October 2026", [
       "Achievements: every unlocked one has a \"See the match\" link showing the game that unlocked it, with the hero, result, figures and match number, and the other player's line if they were in it.",
       "From there, \"Show the full scoreboard\" looks up all twelve players in that match.",
@@ -4199,13 +4212,14 @@ if (typeof document !== "undefined") (function () {
       box.innerHTML = `<span class="top"><span class="label">Latest patch</span>${fresh ? `<span class="new">New</span>` : ""}</span>
         <span class="ttl">${esc(latest.x.title)}</span>
         <span class="meta num">${latest.x.when ? day(latest.x.when / 1000) : ""}${n ? ` · ${n} ${n === 1 ? "change" : "changes"}` : ""}</span>
-        ${latest.o.heroes.length ? `<span class="mine">${yours.length ? `Touches <b>${names}</b>` : state.data && state.data.example ? "" : "None of your usual heroes changed"}</span>` : ""}
+        ${latest.o.heroes.length ? `<span class="mine">${yours.length ? `Touches <b>${names}</b>` : !state.data || state.data.example ? "" : "None of your usual heroes changed"}</span>` : ""}
         <span class="go">Read the patch notes</span>`;
       box.hidden = false;
     }).catch(() => { state.patchFailed = Date.now(); box.hidden = true; });
   }
   $("patchBox").addEventListener("click", () => {
     state.notesView = "game"; state.patchPick = $("patchBox").dataset.key || null;
+    if (!state.data) { state.tab = "notes"; renderBlank(); window.scrollTo({ top: $("report").offsetTop - 60 }); return; }
     setTab("notes");
     try { history.replaceState(null, "", "#notes"); } catch (err) {}
     window.scrollTo({ top: $("tabs").offsetTop - 12 });
@@ -4352,8 +4366,37 @@ if (typeof document !== "undefined") (function () {
     } catch (e) { say("This browser wouldn't save the file.", true); }
   });
 
+  /** Nobody added yet: nothing but a short welcome, or the patch notes if they were asked for. */
+  function renderBlank() {
+    state.token++;
+    for (const id of ["tabs", "filters", "cover", "since", "example"]) $(id).hidden = true;
+    renderPatchBox();
+    const loading = state.roster.length > 0;
+    $("blankBar").hidden = loading || state.tab !== "notes";
+    if (loading) { $("report").innerHTML = state.loadFailed ? `<p class="empty">The matches couldn't be fetched. Use "Fetch the latest matches" above to try again.</p>` : `<p class="empty">Fetching matches…</p>`; return; }
+    if (state.tab === "notes") { renderNotes(); return; }
+    $("report").innerHTML = `<div class="welcome">
+      <p class="headline">The presses are idle</p>
+      <p class="lede">Add yourself above and the first edition prints straight away. Nothing is shown until there is a real player to report on.</p>
+      <div class="cols3">
+        <div><div class="sub">One player</div><p>Form, heroes, records, a recap, a hundred achievements and a deep dive into recent matches.</p></div>
+        <div><div class="sub">Two players</div><p>Add a friend and click you both for a duo grade, your best pairings, a weekly rivalry and a plan for winning more.</p></div>
+        <div><div class="sub">Stop Press</div><p>Either way, your recap can be printed as a newspaper front page to share.</p></div>
+      </div>
+      <p class="muted">Want a look first? <button type="button" class="linkbtn" id="exampleOn">See it with a made-up duo</button>.</p>
+    </div>`;
+  }
+  function showBlank() {
+    state.data = null; state.since = null; state.week = null;
+    if (state.tab !== "notes") state.tab = "report";
+    setStatus("");
+    renderRoster(); renderBlank();
+  }
   function render() {
-    if (!state.data) return;
+    if (!state.data) { renderBlank(); return; }
+    for (const id of ["tabs", "filters", "cover"]) $(id).hidden = false;
+    $("blankBar").hidden = true;
+    $("example").hidden = !state.data.example;
     state.token++;
     renderSince();
     renderCoverage();
@@ -4574,25 +4617,32 @@ if (typeof document !== "undefined") (function () {
     state.roster = []; state.active = []; state.cache.clear();
     store.del(KEY); persist();
     state.tab = "report";
-    showExample(); setTab("report");
+    showBlank();
+  });
+  // the example is there for anyone who wants a look before adding a player
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#exampleOn")) { state.tab = "report"; showExample(); }
+    else if (e.target.closest("#exampleOff")) showBlank();
+    else if (e.target.closest("#blankBack")) { state.tab = "report"; showBlank(); }
   });
 
   function showExample() {
     const ex = exampleData(Math.floor(Date.now() / 1000));
     state.data = { A: ex.A, B: ex.B, profiles: ex.profiles, example: true };
     state.week = null; state.since = null;
-    $("example").hidden = false;
     setStatus("");
     syncTabs(); renderRoster();
-    if (!tabAllowed(state.tab)) setTab("report"); else render();
+    if (!tabAllowed(state.tab)) setTab("report"); else setTab(state.tab);
+    if (!Object.values(state.heroes).some((h) => h.icon)) loadHeroes().then(() => { if (state.data && state.data.example) render(); });
   }
 
   restore();
-  showExample();
-  setTab((location.hash || "").slice(1));
-  loadHeroes().then(() => { if (state.data && state.data.example) render(); }); // hero icons and artwork for the example too
-  if (state.active.length) load();
-  else if (state.roster.length) { state.active = [state.roster[0].id]; load(); }
+  const startTab = (location.hash || "").slice(1);
+  if (["report", "rivalry", "wrapped", "items", "plan", "rank", "player", "achievements", "share", "notes", "deep"].includes(startTab)) state.tab = startTab;
+  if (!state.active.length && state.roster.length) state.active = [state.roster[0].id];
+  showBlank();
+  if (state.active.length) { state.tab = startTab || state.tab; load(); }
+  else loadHeroes().then(() => renderPatchBox()); // hero names, so the patch box can be sorted
 })();
 </script>
 </body>
