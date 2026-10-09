@@ -555,6 +555,9 @@ footer { border-top: 3px double var(--line); }
 .ach { display: grid; grid-template-columns: 52px 1fr; gap: 14px; align-items: start; padding: 14px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
 .ach.on { border-color: var(--gold); box-shadow: inset 0 0 0 3px var(--surface), inset 0 0 0 4px var(--line); }
 .ach.off .ach-name, .ach.off .ach-desc { opacity: .72; }
+.ach.open { grid-column: 1 / -1; }
+.ach-match { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; min-width: 0; }
+.ach-meta .linkbtn { color: inherit; font-size: inherit; }
 .gem { width: 38px; height: 38px; margin: 7px; transform: rotate(45deg); border: 1px solid var(--muted); display: grid; place-items: center; }
 .gem span { transform: rotate(-45deg); font: 400 17px/1 var(--display); color: var(--muted); }
 .ach.on .gem { background: var(--gold); border-color: var(--gold); }
@@ -1576,18 +1579,21 @@ function buildAchievements(hist, partnerHist) {
   const proper = (m) => standard(m) && m.match_duration_s >= 1200;
   const out = [];
   // `long` marks the long hauls: things that take months of play, not one good match
+  // `match` is the game that unlocked it; `single` says the achievement is about that one game, not a running count that game completed
+  const byStart = new Map(list.map((m) => [m.start_time, m]));
   const add = (id, cat, name, desc, pts, r, long) => out.push({
     id, cat, name, desc, pts, long: !!long, unlocked: !!r.unlocked, when: r.when || null, hero: r.hero === undefined ? null : r.hero,
     value: r.value === undefined ? null : r.value, target: r.target === undefined ? null : r.target, unit: r.unit || "", needsPartner: !!r.needsPartner,
+    match: (r.unlocked && r.when && byStart.get(r.when)) || null, single: !!r.single,
   });
   const LONG = true;
   // the first row that does something
-  const first = (pred, rows) => { const hit = (rows || list).find(pred); return { unlocked: !!hit, when: hit && hit.start_time, hero: hit ? hit.hero_id : null }; };
+  const first = (pred, rows) => { const hit = (rows || list).find(pred); return { unlocked: !!hit, when: hit && hit.start_time, hero: hit ? hit.hero_id : null, single: true }; };
   // the best single-match figure, against a target
   const best = (fn, target, unit, pred) => {
     let max = 0, hit = null;
     for (const m of list) { if (pred && !pred(m)) continue; const v = fn(m); if (v > max) max = v; if (!hit && v >= target) hit = m; }
-    return { unlocked: !!hit, when: hit && hit.start_time, hero: hit ? hit.hero_id : null, value: Math.floor(max), target, unit };
+    return { unlocked: !!hit, when: hit && hit.start_time, hero: hit ? hit.hero_id : null, value: Math.floor(max), target, unit, single: true };
   };
   // a running total, unlocked by the match that crosses the line
   const total = (fn, target, unit, rows) => {
@@ -1718,7 +1724,7 @@ function buildAchievements(hist, partnerHist) {
   add("year", "Streaks and habits", "Anniversary", "Still be playing a year after your first match on record", 30,
     { unlocked: span >= 365, when: span >= 365 ? list[list.length - 1].start_time : null, value: span, target: 365, unit: "days since your first match on record" }, LONG);
   add("binge", "Streaks and habits", "Binge", "Play 10 matches in one day", 20, { unlocked: !!dayHit, when: dayHit && dayHit.start_time, value: maxDay, target: 10, unit: "matches in a day" });
-  add("bounce", "Streaks and habits", "Bounce Back", "Win a match straight after losing three in a row", 5, { unlocked: !!bounce, when: bounce && bounce.start_time, hero: bounce ? bounce.hero_id : null });
+  add("bounce", "Streaks and habits", "Bounce Back", "Win a match straight after losing three in a row", 5, { unlocked: !!bounce, when: bounce && bounce.start_time, hero: bounce ? bounce.hero_id : null, single: true });
 
   // Heroes
   add("h5", "Heroes", "Dabbler", "Play 5 different heroes", 5, reached(heroCountAt, 5, heroes.size, "heroes"));
@@ -1750,9 +1756,9 @@ function buildAchievements(hist, partnerHist) {
     const bestPair = (fn, target, unit) => {
       let max = 0, hit = null;
       for (const p of pairs) { const v = fn(p); if (v > max) max = v; if (!hit && v >= target) hit = p.m; }
-      return { unlocked: !!hit, when: hit && hit.start_time, value: Math.floor(max), target, unit };
+      return { unlocked: !!hit, when: hit && hit.start_time, value: Math.floor(max), target, unit, single: true };
     };
-    const firstPair = (pred, rows) => { const hit = (rows || pairs).find(pred); return { unlocked: !!hit, when: hit && hit.m.start_time }; };
+    const firstPair = (pred, rows) => { const hit = (rows || pairs).find(pred); return { unlocked: !!hit, when: hit && hit.m.start_time, single: true }; };
     const played = (n) => total(() => 1, n, "matches together", mine), wins = (n) => total(win, n, "wins together", mine);
     const duoDays = new Map(), pairWins = new Set(), dayAt = new Map(), pairAt = new Map();
     let duoMaxDay = 0, sessionHit = null;
@@ -2188,7 +2194,7 @@ if (typeof document !== "undefined") (function () {
   const SAVED = "duo-report-card.saved", ROSTER = "duo-report-card.roster";
   const state = {
     tab: "report", week: null, sharedOnly: false, token: 0, itemsMeta: {},
-    scope: "week", year: null, card: null, cardCtx: null, ranks: null, who: "a", achFilter: "all", notesView: "game", patchPick: null, deepInfo: null, patchInfo: null, patchChecked: null,
+    scope: "week", year: null, card: null, cardCtx: null, ranks: null, who: "a", achFilter: "all", notesView: "game", patchPick: null, deepInfo: null, patchInfo: null, patchChecked: null, achOpen: null,
     days: 0, mode: "normal",
     data: null,          // { A, B, profiles, example, solo }
     roster: [],          // everyone added: { id, name, avatar }
@@ -2200,7 +2206,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "19";
+  const VERSION = "20";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -3836,7 +3842,7 @@ if (typeof document !== "undefined") (function () {
       versus = `<div class="sub">Head to head</div><div class="vs">${rows}</div>`;
     }
     out.push(`<section><h2>Score</h2>
-      ${how("A hundred achievements, each worth 5 to 100 points depending on how hard it is. The long hauls take months of play, not one good match. They are worked out from every game the Deadlock API has on record for this player, in any mode, so the time period and mode filters don't apply here. Missing matches can only hide an achievement, never grant one.")}
+      ${how("A hundred achievements, each worth 5 to 100 points depending on how hard it is. Unlocked ones have a \"See the match\" link that opens the game behind them. The long hauls take months of play, not one good match. They are worked out from every game the Deadlock API has on record for this player, in any mode, so the time period and mode filters don't apply here. Missing matches can only hide an achievement, never grant one.")}
       <div class="tally"><span class="pts num">${n0(ach.score)}</span><span class="of muted num">of ${n0(ach.max)} points</span><span class="rank">${esc(ach.title)}</span></div>
       <div><div class="meter" role="img" aria-label="${n0(ach.score)} of ${n0(ach.max)} points"><i style="width:${share * 100}%"></i>${ticks}</div>
         <div class="meter-keys">${keys}</div></div>
@@ -3848,14 +3854,32 @@ if (typeof document !== "undefined") (function () {
     out.push(`<div class="filters"><span class="label">Show</span><div class="seg" role="group" aria-label="Which achievements">${[["all", `All ${ach.list.length}`], ["on", `Unlocked ${ach.count}`], ["off", `Locked ${ach.list.length - ach.count}`], ["long", `Long hauls ${ach.list.filter((a) => a.long).length}`]]
       .map(([k, l]) => `<button type="button" data-achf="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div></div>`);
 
+    // the game behind an unlocked achievement, opened in place
+    const partnerById = new Map(d.solo ? [] : otherHist.map((m) => [m.match_id, m]));
+    const matchPanel = (a) => {
+      const m = a.match, o = partnerById.get(m.match_id) || null, mins = Math.max(1, m.match_duration_s / 60);
+      const mode = m.match_mode === 4 ? "Ranked" : m.game_mode === 4 ? "Street Brawl" : "Standard 6v6";
+      const whenText = new Date(m.start_time * 1000).toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const row = (k, name, x, note) => `<tr><td><span class="${k === "a" ? "amber" : "sapphire"}">${esc(name)}</span>${note ? ` <span class="muted">${note}</span>` : ""}</td><td>${heroCell(x.hero_id)}</td>
+        <td class="r num">${x.player_kills} / ${x.player_deaths} / ${x.player_assists}</td><td class="r num">${n0(x.net_worth)}</td><td class="r num">${n0(x.net_worth / mins)}</td><td class="r num">${n0(x.last_hits)}</td><td class="r num">${n0(x.denies)}</td></tr>`;
+      return `<div class="ach-match">
+        <div class="sub">${a.single ? "The match that did it" : "The match that took it over the line"}</div>
+        ${a.single ? "" : `<p class="muted">This one builds up over many games. This is the game that completed it.</p>`}
+        <p class="num"><span class="tag ${won(m) ? "win" : "loss"}">${won(m) ? "Win" : "Loss"}</span> &nbsp;${esc(whenText)} · ${mode} · ${clock(m.match_duration_s)} long · match ${m.match_id}</p>
+        <div class="scroll"><table><thead><tr><th>Player</th><th>Hero</th><th class="r">K / D / A</th><th class="r">Souls</th><th class="r">Souls / min</th><th class="r">Last hits</th><th class="r">Denies</th></tr></thead>
+          <tbody>${row(side, prof.personaname || "Player", m)}${o ? row(other, d.profiles[other].personaname || "Player", o, o.player_team === m.player_team ? "" : "(other team)") : ""}</tbody></table></div>
+        ${d.example ? "" : `<div class="actions"><button type="button" class="linkbtn" data-achboard="${m.match_id}" data-team="${m.player_team}">Show the full scoreboard</button></div>`}
+        <div id="achBoard"></div></div>`;
+    };
     const card = (a) => {
       let meta;
-      if (a.unlocked) meta = `<div class="ach-meta">Unlocked${a.when ? " " + day(a.when) : ""}${a.hero !== null ? " on " + esc(heroName(a.hero)) : ""}</div>`;
+      const key = side + ":" + a.id, open = a.unlocked && a.match && state.achOpen === key;
+      if (a.unlocked) meta = `<div class="ach-meta">Unlocked${a.when ? " " + day(a.when) : ""}${a.hero !== null ? " on " + esc(heroName(a.hero)) : ""}${a.match ? ` · <button type="button" class="linkbtn" data-achm="${key}" aria-expanded="${!!open}">${open ? "Hide the match" : "See the match"}</button>` : ""}</div>`;
       else if (a.needsPartner) meta = `<div class="ach-meta">Needs a second player loaded</div>`;
       else if (a.target !== null) meta = `<div class="bar"><i style="width:${Math.min(100, (a.value / a.target) * 100)}%"></i></div><div class="ach-meta num">${n0(Math.min(a.value, a.target))} of ${n0(a.target)} ${esc(a.unit)}</div>`;
       else meta = `<div class="ach-meta">Not yet</div>`;
-      return `<div class="ach ${a.unlocked ? "on" : "off"}"><div class="gem" title="${a.pts} points"><span class="num">${a.pts}</span></div>
-        <div class="ach-body"><div class="ach-name">${esc(a.name)}${a.long ? ` <span class="tag">Long haul</span>` : ""}</div><div class="ach-desc">${esc(a.desc)}</div>${meta}</div></div>`;
+      return `<div class="ach ${a.unlocked ? "on" : "off"}${open ? " open" : ""}"><div class="gem" title="${a.pts} points"><span class="num">${a.pts}</span></div>
+        <div class="ach-body"><div class="ach-name">${esc(a.name)}${a.long ? ` <span class="tag">Long haul</span>` : ""}</div><div class="ach-desc">${esc(a.desc)}</div>${meta}</div>${open ? matchPanel(a) : ""}</div>`;
     };
     let shown = 0;
     for (const cat of ACH_CATS) {
@@ -3871,6 +3895,30 @@ if (typeof document !== "undefined") (function () {
     }
     if (!shown) out.push(`<p class="empty">${f === "on" ? "Nothing unlocked yet." : f === "off" ? "Nothing left to unlock." : "Nothing to show."}</p>`);
     $("report").innerHTML = out.join("");
+  }
+  /** All twelve players in one match, for the achievement that is open. Names are shown for anyone in your players list. */
+  function showBoard(matchId, myTeam) {
+    const box = $("achBoard"), token = state.token;
+    if (!box) return;
+    box.innerHTML = `<p class="empty">Looking up the match…</p>`;
+    getJson(`/v1/matches/metadata?include_info=true&include_player_info=true&match_ids=${matchId}&limit=1`).then((rows) => {
+      if (token !== state.token || !$("achBoard")) return;
+      const row = Array.isArray(rows) ? rows.find((r) => Number(r.match_id) === Number(matchId)) || rows[0] : null;
+      const players = row && Array.isArray(row.players) ? row.players : [];
+      if (!players.length) { box.innerHTML = `<p class="empty">The API has no full details on record for this match, so there is no scoreboard to show.</p>`; return; }
+      const d = state.data, shown = { [d.profiles.a.account_id]: "amber", [d.profiles.b.account_id]: "sapphire" };
+      const nameOf = (id) => { const r = inRoster(id); return r ? r.name : d.profiles.a.account_id === id ? d.profiles.a.personaname : d.profiles.b.account_id === id ? d.profiles.b.personaname : ""; };
+      const winner = teamNo(row.winning_team);
+      const table = (team) => {
+        const list = players.filter((p) => teamNo(p.team) === team).sort((x, y) => (y.net_worth || 0) - (x.net_worth || 0));
+        if (!list.length) return "";
+        return `<div class="plain"><div class="sub ${winner === team ? "win" : "loss"}">${team === myTeam ? "Your team" : "Enemy team"}${winner === team ? ", won" : winner === null ? "" : ", lost"}</div>
+          <div class="scroll"><table><thead><tr><th>Hero</th><th>Player</th><th class="r">K / D / A</th><th class="r">Souls</th><th class="r">Last hits</th><th class="r">Denies</th></tr></thead>
+          <tbody>${list.map((p) => `<tr><td>${heroCell(p.hero_id)}</td><td>${nameOf(p.account_id) ? `<span class="${shown[p.account_id] || ""}">${esc(nameOf(p.account_id))}</span>` : `<span class="muted">–</span>`}</td>
+            <td class="r num">${p.kills || 0} / ${p.deaths || 0} / ${p.assists || 0}</td><td class="r num">${n0(p.net_worth || 0)}</td><td class="r num">${n0(p.last_hits || 0)}</td><td class="r num">${n0(p.denies || 0)}</td></tr>`).join("")}</tbody></table></div></div>`;
+      };
+      box.innerHTML = `<div class="cols">${table(myTeam)}${table(1 - myTeam)}</div><p class="muted">Each team is listed richest first. Only players in your list are named.</p>`;
+    }).catch((e) => { if ($("achBoard")) box.innerHTML = `<p class="status err">${esc(e.message || "Couldn't load the match.")}</p>`; });
   }
 
   /* ---------- deep dive ---------- */
@@ -4056,6 +4104,10 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["20", "9 October 2026", [
+      "Achievements: every unlocked one has a \"See the match\" link showing the game that unlocked it, with the hero, result, figures and match number, and the other player's line if they were in it.",
+      "From there, \"Show the full scoreboard\" looks up all twelve players in that match.",
+    ]],
     ["19", "9 October 2026", [
       "The latest patch is boxed beside the title: its name, date, how much changed and whether it touches heroes you play. Click it to read the notes. It is marked New until you have opened it.",
       "Deep dive now works for one player: damage, share of team damage, how often they top the team, comebacks, the first ten minutes and a soul curve from their last 20 games.",
@@ -4472,6 +4524,13 @@ if (typeof document !== "undefined") (function () {
     else if (sh) { state.sharedOnly = sh.dataset.shared === "1"; render(); }
     else if (sc) { state.scope = sc.dataset.scope; render(); }
     else if (e.target.closest("[data-who]")) { state.who = e.target.closest("[data-who]").dataset.who; render(); }
+    else if (e.target.closest("[data-achm]")) {
+      const key = e.target.closest("[data-achm]").dataset.achm;
+      state.achOpen = state.achOpen === key ? null : key; render();
+      const openCard = document.querySelector(".ach.open");
+      if (openCard) openCard.scrollIntoView({ block: "nearest" });
+    }
+    else if (e.target.closest("[data-achboard]")) { const b = e.target.closest("[data-achboard]"); b.hidden = true; showBoard(b.dataset.achboard, Number(b.dataset.team)); }
     else if (e.target.closest("[data-achf]")) { state.achFilter = e.target.closest("[data-achf]").dataset.achf; render(); }
     else if (yr) { state.year = Number(yr.dataset.year); render(); }
     else if (act) cardAction(act.dataset.cardact);
