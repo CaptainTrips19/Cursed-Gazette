@@ -4,6 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Cursed Gazette</title>
+<meta name="description" content="Deadlock stats for you and the people you play with, written up as a newspaper: form, duo grades, rivalries, achievements and a front page to share.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Cursed Gazette">
+<meta property="og:title" content="The Cursed Gazette">
+<meta property="og:description" content="Deadlock stats for you and the people you play with, written up as a newspaper.">
+<meta property="og:url" content="https://captaintrips19.github.io/Cursed-Gazette/">
+<meta property="og:image" content="https://captaintrips19.github.io/Cursed-Gazette/preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#e7dcc0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23e7dcc0'/><rect x='4' y='4' width='56' height='56' fill='none' stroke='%231c1711' stroke-width='3'/><rect x='9' y='9' width='46' height='46' fill='none' stroke='%231c1711' stroke-width='1'/><text x='32' y='47' font-family='Georgia, serif' font-size='42' font-weight='700' text-anchor='middle' fill='%231c1711'>G</text></svg>">
+<script id="theme-boot">
+// Set the theme before anything is drawn, so the page doesn't flash the wrong one.
+(function () {
+  var pick = "auto";
+  try { pick = JSON.parse(localStorage.getItem("duo-report-card.theme")) || "auto"; } catch (e) {}
+  if (["light", "dark", "occult"].indexOf(pick) < 0) pick = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", pick);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Jost:wght@400;500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=UnifrakturCook:wght@700&display=swap">
@@ -34,27 +53,46 @@
   --display: "DM Serif Display", "Bodoni MT", Didot, Georgia, serif;
   --body: "Jost", "Century Gothic", "Avenir Next", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #e8dec6;        /* newsprint */
-    --glow: #f5edd9;
-    --surface: #f1e8d2;
-    --raised: #faf4e3;
-    --line: #bcab88;
-    --gold: #7a5a14;
-    --on-gold: #fbf5e6;
-    --fg: #211b12;
-    --muted: #63583f;
-    --amber: #9a5a00;
-    --amber-soft: rgba(154, 90, 0, .13);
-    --sapphire: #1d55a3;
-    --sapphire-soft: rgba(29, 85, 163, .12);
-    --amber-mark: #9a5a00;
-    --sapphire-mark: #1d55a3;
-    --win: #1a6b4c;
-    --loss: #a5311d;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e8dec6;        /* newsprint */
+  --glow: #f5edd9;
+  --surface: #f1e8d2;
+  --raised: #faf4e3;
+  --line: #bcab88;
+  --gold: #7a5a14;
+  --on-gold: #fbf5e6;
+  --fg: #211b12;
+  --muted: #63583f;
+  --amber: #9a5a00;
+  --amber-soft: rgba(154, 90, 0, .13);
+  --sapphire: #1d55a3;
+  --sapphire-soft: rgba(29, 85, 163, .12);
+  --amber-mark: #9a5a00;
+  --sapphire-mark: #1d55a3;
+  --win: #1a6b4c;
+  --loss: #a5311d;
+}
+/* Occult: the same paper read by candlelight in the wrong part of town. Violet stands in for brass. */
+:root[data-theme="occult"] {
+  color-scheme: dark;
+  --bg: #100b16;        /* void */
+  --glow: #2a1838;
+  --surface: #19121f;
+  --raised: #241a2e;
+  --line: #4f3a68;
+  --gold: #c29bff;      /* spirit violet: rules, ornaments, the main button */
+  --on-gold: #150c1e;
+  --fg: #ece3f5;
+  --muted: #a898bb;
+  --amber: #f2b552;
+  --amber-soft: rgba(242, 181, 82, .16);
+  --sapphire: #6db8f5;
+  --sapphire-soft: rgba(109, 184, 245, .16);
+  --amber-mark: #c48a2a;
+  --sapphire-mark: #4a9be0;
+  --win: #7fe0b0;
+  --loss: #ff7a6b;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -613,11 +651,34 @@ footer { border-top: 3px double var(--line); }
 .welcome .cols3 > div { border-top: 3px double var(--line); padding-top: 12px; }
 .welcome .cols3 p { color: var(--muted); font-size: 14.5px; }
 @media (max-width: 760px) { .welcome .cols3 { grid-template-columns: 1fr; } }
+/* themes: the picker, and the occult theme's extras */
+.themebar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 14px; margin-bottom: -14px; }
+.themebar .label { letter-spacing: .2em; }
+.themebar button { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 1px; cursor: pointer; }
+.themebar button:hover { color: var(--fg); }
+.themebar button[aria-pressed="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+:root[data-theme="occult"] body { background-size: 100% 900px; }
+:root[data-theme="occult"] body::before { content: ""; position: fixed; top: -180px; right: -200px; width: 720px; height: 720px; background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-110 -110 220 220' fill='none' stroke='%23c29bff' stroke-width='0.7'><circle r='104'/><circle r='98'/><circle r='62'/><circle r='20'/><path d='M0 -98 L57.6 79.3 L-93.2 -30.3 L93.2 -30.3 L-57.6 79.3 Z'/><path d='M0 -62 L53.7 31 L-53.7 31 Z M0 62 L53.7 -31 L-53.7 -31 Z'/><path d='M-104 0 H-62 M62 0 H104 M0 -104 V-98 M0 98 V104'/><circle cx='0' cy='-80' r='4'/><circle cx='76' cy='-25' r='4'/><circle cx='47' cy='65' r='4'/><circle cx='-47' cy='65' r='4'/><circle cx='-76' cy='-25' r='4'/></svg>") center / contain no-repeat; opacity: .13; pointer-events: none; z-index: 0; }
+:root[data-theme="occult"] .wrap { position: relative; z-index: 1; }
+:root[data-theme="occult"] .masthead h1 { text-shadow: 0 0 28px rgba(194, 155, 255, .35); }
+:root[data-theme="occult"] section > h2::before { border-radius: 50%; box-shadow: 0 0 10px var(--gold); transform: none; }
+:root[data-theme="occult"] .btn { box-shadow: 0 0 18px rgba(194, 155, 255, .25); }
+/* partners */
+.partners td .linkbtn { color: var(--gold); }
+.partners tr.thin td { opacity: .62; }
+.fetched { font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+  <div class="themebar" id="themeBar" role="group" aria-label="Theme">
+    <span class="label">Theme</span>
+    <button type="button" data-theme-pick="auto">Match device</button>
+    <button type="button" data-theme-pick="light">Newsprint</button>
+    <button type="button" data-theme-pick="dark">Dark</button>
+    <button type="button" data-theme-pick="occult">Occult</button>
+  </div>
   <header class="masthead">
     <div class="mast-main">
       <span class="label">Deadlock</span>
@@ -639,6 +700,8 @@ footer { border-top: 3px double var(--line); }
     <div class="picks" id="picksAdd"></div>
     <div class="actions">
       <button class="linkbtn" id="refresh" type="button" hidden>Fetch the latest matches</button>
+      <span class="fetched num" id="fetched"></span>
+      <button class="linkbtn" id="copyLink" type="button" hidden>Copy a link to this view</button>
       <button class="linkbtn" id="forget" type="button" hidden>Remove everyone</button>
       <span class="status" id="status" role="status"></span>
     </div>
@@ -654,7 +717,7 @@ footer { border-top: 3px double var(--line); }
     <button type="button" role="tab" data-tab="rank" aria-selected="false">Rank</button>
     <button type="button" role="tab" data-tab="player" aria-selected="false">Player</button>
     <button type="button" role="tab" data-tab="achievements" aria-selected="false">Achievements</button>
-    <button type="button" role="tab" data-tab="notes" aria-selected="false">Patch notes</button>
+    <button type="button" role="tab" data-tab="partners" aria-selected="false" title="Your record with each of your players">Partners</button>
     <button type="button" role="tab" data-tab="share" class="press" aria-selected="false" title="Print your recap as a front page to share">Stop Press</button>
     <button type="button" role="tab" data-tab="deep" class="deep" aria-selected="false" title="Full match details: slower, and denser">Deep dive</button>
   </nav>
@@ -1345,6 +1408,28 @@ function buildGazette(input) {
   if (out.ears) { out.ears.left.text = curly(out.ears.left.text); out.ears.right.text = curly(out.ears.right.text); }
   out.footer = "Printed in the Cursed Apple. The Cursed Gazette is in no way connected with the New York Oracle. Figures from deadlock-api.com.";
   return out;
+}
+
+/* ---------- partners: one player's record with each of the others ---------- */
+/**
+ * mine: one player's history. others: [{ id, name, hist }] (hist null if it couldn't be loaded).
+ * Returns a row per partner, best first, and the record in games with none of them.
+ */
+function buildPartners(mine, others, opts) {
+  const withSomeone = new Set();
+  const rows = others.map((o) => {
+    if (!o.hist) return { id: o.id, name: o.name, missing: true, games: 0, wins: 0, rate: null, grade: null, best: null, last: null, streak: 0 };
+    const r = buildReport(mine, o.hist, opts);
+    for (const p of r.together) withSomeone.add(p.a.match_id);
+    return { id: o.id, name: o.name, missing: false, games: r.record.games, wins: r.record.wins, rate: r.record.games ? r.record.rate : null,
+      grade: r.record.games >= 5 ? r.grade.letter : null, best: r.best, last: r.together.length ? r.together[0].a.start_time : null, streak: r.streak.best };
+  });
+  // a real sample first, by win rate; then the thin ones by how much there is
+  const solid = (x) => x.games >= 5;
+  rows.sort((x, y) => (solid(y) - solid(x)) || (solid(x) ? y.rate - x.rate || y.games - x.games : y.games - x.games) || String(x.name).localeCompare(String(y.name)));
+  const alone = record(filterMatches(mine, opts).filter((m) => !withSomeone.has(m.match_id)));
+  const best = rows.find(solid) || null;
+  return { rows, alone, best, total: record(filterMatches(mine, opts)) };
 }
 
 /* ---------- nemesis heroes ---------- */
@@ -2173,7 +2258,7 @@ function exampleData(now) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parsePlayerInput, buildReport, remarkFor, exampleData, filterMatches, gradeFor, weekStart, weekEnd, weeksOf, buildRivalry, buildWrapped, weekAwards, coverage, buildPlan, heroPool, synergyPicks, topItems, yearsOf, yearRange, nemesis, badgeIndex, buildRank, rankSplit, patterns, buildPlayer, buildAchievements, ACH_CATS, makeSnapshot, diffSnapshots, spread, buildExport, EXPORT_COLUMNS, teamNo, statSeries, deepMatch, buildDeep, buildGazette, seededPicks, romanNumeral, parsePatchHtml, organisePatch, resolvePatches, patchUnfurl, unescapeTags, unixTime, nameKey };
+  module.exports = { parsePlayerInput, buildReport, remarkFor, exampleData, filterMatches, gradeFor, weekStart, weekEnd, weeksOf, buildRivalry, buildWrapped, weekAwards, coverage, buildPlan, heroPool, synergyPicks, topItems, yearsOf, yearRange, nemesis, badgeIndex, buildRank, rankSplit, patterns, buildPlayer, buildAchievements, ACH_CATS, makeSnapshot, diffSnapshots, spread, buildExport, EXPORT_COLUMNS, teamNo, statSeries, deepMatch, buildDeep, buildPartners, buildGazette, seededPicks, romanNumeral, parsePatchHtml, organisePatch, resolvePatches, patchUnfurl, unescapeTags, unixTime, nameKey };
 }
 
 /* ============================================================
@@ -2213,7 +2298,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "21";
+  const VERSION = "22";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -2322,14 +2407,45 @@ if (typeof document !== "undefined") (function () {
     $("forget").hidden = !state.roster.length;
     $("refresh").hidden = !shown.length || !!(d && d.example);
     $("go").textContent = state.roster.length ? "Add player" : "Add yourself";
+    const times = shown.map((id) => (state.cache.get(id) || {}).at).filter(Boolean);
+    $("fetched").textContent = times.length && d && !d.example ? "Fetched at " + new Date(Math.min(...times)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + "." : "";
+    $("copyLink").hidden = !shown.length || !d || !!d.example;
+    syncTabs();
+  }
+  /** A link that opens the page with the players on show already loaded. */
+  function shareLink() {
+    const base = location.protocol === "file:" ? location.href.split(/[?#]/)[0] : location.origin + location.pathname;
+    return base + "?players=" + shownIds().join(",");
+  }
+  /** Players named in the address (…?players=123,456) are added and put on show, then the address is tidied. */
+  function playersFromLink() {
+    let ids = [];
+    try { ids = (new URLSearchParams(location.search).get("players") || "").split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0 && n < 4294967296); } catch (e) {}
+    ids = [...new Set(ids)].slice(0, 6);
+    if (!ids.length) return false;
+    for (const id of ids) if (!inRoster(id)) state.roster.push({ id, name: "Player " + id, avatar: null });
+    state.active = ids.slice(0, 2);
+    persist();
+    try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+    return true;
   }
   /** Tabs that need two players are put away when only one is on show. */
   function syncTabs() {
     const solo = !!(state.data && state.data.solo);
     $("tabs").classList.toggle("solo", solo);
-    for (const b of $("tabs").querySelectorAll("button")) b.hidden = solo && b.hasAttribute("data-duo");
+    for (const b of $("tabs").querySelectorAll("button")) b.hidden = !tabAllowed(b.dataset.tab);
   }
-  const tabAllowed = (tab) => { const b = $("tabs").querySelector(`[data-tab="${tab}"]`); return !!b && !(state.data && state.data.solo && b.hasAttribute("data-duo")); };
+  const TABS = ["report", "rivalry", "wrapped", "items", "plan", "rank", "player", "achievements", "partners", "share", "notes", "deep"];
+  const DUO_TABS = ["report", "rivalry", "plan"];
+  /** Patch notes need nobody; duo pages need two on show; Partners needs at least two real players in the list. */
+  function tabAllowed(tab) {
+    const d = state.data;
+    if (!TABS.includes(tab)) return false;
+    if (tab === "notes") return true;
+    if (d && d.solo && DUO_TABS.includes(tab)) return false;
+    if (tab === "partners") return !!d && !d.example && state.roster.length >= 2;
+    return true;
+  }
 
   function showPicks(list, note) {
     const box = $("picksAdd");
@@ -2402,9 +2518,12 @@ if (typeof document !== "undefined") (function () {
     state.roster = state.roster.filter((p) => p.id !== id);
     state.active = state.active.filter((x) => x !== id);
     state.cache.delete(id);
+    if (state.partnerFail) state.partnerFail.delete(id);
     if (!state.active.length && state.roster.length) state.active = [state.roster[0].id];
     persist(); renderRoster();
     if (!state.roster.length) { store.del(KEY); showBlank(); } else if (wasShown) load();
+    else if (state.data && !tabAllowed(state.tab)) setTab(state.data.solo ? "player" : "report");
+    else if (state.data && state.tab === "partners") render();
   }
   /**
    * Fetch whatever isn't in hand for the players on show, then draw. Returns whether it worked.
@@ -2421,7 +2540,7 @@ if (typeof document !== "undefined") (function () {
     try {
       const need = ids.filter((id) => fresh || !state.cache.has(id));
       const [profiles] = await Promise.all([loadProfiles(ids), loadHeroes(),
-        ...need.map((id) => loadHistory(id, (inRoster(id) || {}).name || "that player").then((h) => state.cache.set(id, h)))]);
+        ...need.map((id) => loadHistory(id, (inRoster(id) || {}).name || "that player").then((h) => state.cache.set(id, { ...h, at: Date.now() })))]);
       for (const p of profiles) {
         const r = inRoster(p.account_id);
         if (r) { r.name = p.personaname || r.name; r.avatar = p.avatarmedium || p.avatarfull || r.avatar; }
@@ -3860,7 +3979,7 @@ if (typeof document !== "undefined") (function () {
     </section>`);
 
     const f = state.achFilter;
-    out.push(`<div class="filters"><span class="label">Show</span><div class="seg" role="group" aria-label="Which achievements">${[["all", `All ${ach.list.length}`], ["on", `Unlocked ${ach.count}`], ["off", `Locked ${ach.list.length - ach.count}`], ["long", `Long hauls ${ach.list.filter((a) => a.long).length}`]]
+    out.push(`<div class="filters"><span class="label">Show</span><div class="seg" role="group" aria-label="Which achievements">${[["all", `All ${ach.list.length}`], ["on", `Unlocked ${ach.count}`], ["off", `Locked ${ach.list.length - ach.count}`], ["long", `Long hauls ${ach.list.filter((a) => a.long).length}`], ["near", "Closest to unlocking"]]
       .map(([k, l]) => `<button type="button" data-achf="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div></div>`);
 
     // the game behind an unlocked achievement, opened in place
@@ -3891,7 +4010,15 @@ if (typeof document !== "undefined") (function () {
         <div class="ach-body"><div class="ach-name">${esc(a.name)}${a.long ? ` <span class="tag">Long haul</span>` : ""}</div><div class="ach-desc">${esc(a.desc)}</div>${meta}</div>${open ? matchPanel(a) : ""}</div>`;
     };
     let shown = 0;
-    for (const cat of ACH_CATS) {
+    if (f === "near") {
+      const near = ach.list.filter((a) => !a.unlocked && !a.needsPartner && a.target && a.value > 0).map((a) => ({ a, done: Math.min(1, a.value / a.target) }))
+        .sort((x, y) => y.done - x.done || x.a.pts - y.a.pts).slice(0, 12);
+      shown = near.length;
+      if (near.length) out.push(`<section><h2>Closest to unlocking</h2>
+        ${how("The locked achievements this player is furthest through, nearest first. Ones with no running count, such as doing something in a single match, can't be ranked and are left out.")}
+        <div class="ach-grid">${near.map((x) => card(x.a)).join("")}</div></section>`);
+    }
+    for (const cat of f === "near" ? [] : ACH_CATS) {
       const all = ach.list.filter((a) => a.cat === cat);
       const list = all.filter((a) => f === "all" || (f === "long" ? a.long : (f === "on") === a.unlocked));
       if (!list.length) continue;
@@ -3902,7 +4029,7 @@ if (typeof document !== "undefined") (function () {
         <div class="ach-grid">${list.map(card).join("")}</div>
       </section>`);
     }
-    if (!shown) out.push(`<p class="empty">${f === "on" ? "Nothing unlocked yet." : f === "off" ? "Nothing left to unlock." : "Nothing to show."}</p>`);
+    if (!shown) out.push(`<p class="empty">${f === "on" ? "Nothing unlocked yet." : f === "off" ? "Nothing left to unlock." : f === "near" ? "Nothing part-way through at the moment." : "Nothing to show."}</p>`);
     $("report").innerHTML = out.join("");
   }
   /** All twelve players in one match, for the achievement that is open. Names are shown for anyone in your players list. */
@@ -3928,6 +4055,48 @@ if (typeof document !== "undefined") (function () {
       };
       box.innerHTML = `<div class="cols">${table(myTeam)}${table(1 - myTeam)}</div><p class="muted">Each team is listed richest first. Only players in your list are named.</p>`;
     }).catch((e) => { if ($("achBoard")) box.innerHTML = `<p class="status err">${esc(e.message || "Couldn't load the match.")}</p>`; });
+  }
+
+  /* ---------- partners: who this player does best with ---------- */
+  function renderPartners() {
+    const d = state.data, now = Math.floor(Date.now() / 1000), token = state.token;
+    const side = d.solo || state.who, tone = side === "a" ? "amber" : "sapphire", me = d.profiles[side], eName = esc(me.personaname || "Player");
+    const mine = side === "a" ? d.A : d.B;
+    const pickSeg = d.solo ? "" : `<div class="filters"><span class="label">Player</span><div class="seg" role="group" aria-label="Which player">${["a", "b"]
+      .map((k) => `<button type="button" data-who="${k}" aria-pressed="${side === k}">${esc(d.profiles[k].personaname || "Player")}</button>`).join("")}</div></div>`;
+    const others = state.roster.filter((p) => p.id !== me.account_id);
+    const head = `<div class="plain">${pickSeg}<p class="headline">Partners</p>
+      ${how(`<span class="${tone}">${eName}</span>'s record on the same team as each of the other players in your list, in the time period and mode chosen above. Players with at least 5 games together come first, best win rate at the top. The grade uses the same scale as the Report card.`)}</div>`;
+    const need = others.filter((p) => !state.cache.has(p.id) && !(state.partnerFail && state.partnerFail.has(p.id)));
+    if (need.length) {
+      $("report").innerHTML = `${head}<p class="empty">Fetching matches for ${need.length === 1 ? esc(need[0].name) : need.length + " players"}…</p>`;
+      state.partnerFail = state.partnerFail || new Set();
+      Promise.all(need.map((p) => loadHistory(p.id, p.name).then((h) => state.cache.set(p.id, { ...h, at: Date.now() })).catch(() => state.partnerFail.add(p.id))))
+        .then(() => { if (token === state.token && state.tab === "partners") render(); });
+      return;
+    }
+    const r = buildPartners(mine, others.map((p) => ({ id: p.id, name: p.name, hist: state.cache.has(p.id) ? state.cache.get(p.id).list : null })), viewOpts(now));
+    const shownIdsNow = shownIds();
+    const row = (x) => x.missing
+      ? `<tr><td>${esc(x.name)}</td><td colspan="6" class="muted">Their matches couldn't be fetched.</td></tr>`
+      : `<tr${x.games < 5 ? ` class="thin"` : ""}><td><strong>${esc(x.name)}</strong></td><td class="r num">${n0(x.games)}</td><td class="r num">${x.games ? `${x.wins}–${x.games - x.wins}` : "–"}</td>
+          <td class="r">${x.games ? wrCell(x.rate) : "–"}</td><td class="r"><strong>${x.grade ? esc(x.grade) : "–"}</strong></td>
+          <td>${x.best ? `${heroCell(x.best.heroA)} <span class="muted">with</span> ${heroCell(x.best.heroB)} <span class="muted num">${pct(x.best.rate)}</span>` : `<span class="muted">–</span>`}</td>
+          <td class="num">${x.last ? day(x.last) : "–"}</td>
+          <td>${shownIdsNow.length === 2 && shownIdsNow.includes(x.id) && shownIdsNow.includes(me.account_id) ? `<span class="muted">On show</span>` : `<button type="button" class="linkbtn" data-compare="${x.id}" data-me="${me.account_id}">Compare</button>`}</td></tr>`;
+    const out = [head];
+    const b = r.best;
+    out.push(`<section><h2>Who ${eName} plays best with</h2>
+      <p class="headline">${b ? `${esc(b.name)}: ${pct(b.rate)} over ${n0(b.games)} games` : "Not enough games with anyone yet"}</p>
+      <p class="lede">${b ? `That is the best win rate with any partner who has 5 or more games together. Without any of these players ${eName} wins ${r.alone.games ? pct(r.alone.rate) + " of " + n0(r.alone.games) + " games" : "no games on record"}.` : `A partner needs 5 games together in this view to be ranked. Try a wider time period.`}</p>
+      <div class="scroll"><table class="partners">
+        <thead><tr><th>Partner</th><th class="r">Games together</th><th class="r">W–L</th><th class="r">Win rate</th><th class="r">Grade</th><th>Best pairing <span class="muted">(${eName} first)</span></th><th>Last played</th><th></th></tr></thead>
+        <tbody>${r.rows.map(row).join("")}
+          <tr><td class="muted">With none of them</td><td class="r num">${n0(r.alone.games)}</td><td class="r num">${r.alone.games ? `${r.alone.wins}–${r.alone.losses}` : "–"}</td><td class="r">${r.alone.games ? wrCell(r.alone.rate) : "–"}</td><td colspan="4"></td></tr>
+        </tbody></table></div>
+      <p class="muted">Faded rows have fewer than 5 games together. "With none of them" is every other game ${eName} played in this view, alone or with people not in your list.</p>
+    </section>`);
+    $("report").innerHTML = out.join("");
   }
 
   /* ---------- deep dive ---------- */
@@ -4113,6 +4282,14 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["22", "9 October 2026", [
+      "Themes: Newsprint, Dark and a new Occult theme, chosen at the top right. \"Match device\" follows your computer's light or dark setting.",
+      "Partners tab: one player's record, win rate and grade with every other player in the list, best first, with a Compare link for each.",
+      "\"Copy a link to this view\" makes an address that opens the page with the same players loaded.",
+      "Achievements: a \"Closest to unlocking\" filter.",
+      "The time the matches were last fetched is shown beside \"Fetch the latest matches\".",
+      "The page has a browser tab icon and a title and description for link previews. Patch notes are opened from the box beside the title, which replaces their tab.",
+    ]],
     ["21", "9 October 2026", [
       "The page now starts blank until a player is added, instead of showing a made-up duo. The example is still there behind a \"See it with a made-up duo\" link.",
       "The latest patch box and the patch notes work before anyone is added.",
@@ -4401,12 +4578,14 @@ if (typeof document !== "undefined") (function () {
     renderSince();
     renderCoverage();
     renderPatchBox();
+    for (const b of $("tabs").querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset.tab === state.tab));
     $("filters").hidden = state.tab === "achievements" || state.tab === "notes"; // these don't depend on the period or mode
     $("period").hidden = $("periodLabel").hidden = state.tab === "wrapped" || state.tab === "share" || state.tab === "deep";
     if (state.tab === "player") renderPlayer();
     else if (state.tab === "achievements") renderAchievements();
     else if (state.tab === "share") renderShare();
     else if (state.tab === "notes") renderNotes();
+    else if (state.tab === "partners") renderPartners();
     else if (state.tab === "wrapped") renderWrapped();
     else if (state.tab === "items") renderItems();
     else if (state.tab === "rank") renderRank();
@@ -4529,11 +4708,33 @@ if (typeof document !== "undefined") (function () {
     </section>`;
   }
 
+  /* ---------- themes ---------- */
+  const THEME = "duo-report-card.theme";
+  function applyTheme(pick) {
+    const light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+    document.documentElement.setAttribute("data-theme", ["light", "dark", "occult"].includes(pick) ? pick : light ? "light" : "dark");
+    for (const b of $("themeBar").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.themePick === pick));
+  }
+  let themePick = store.get(THEME);
+  if (!["auto", "light", "dark", "occult"].includes(themePick)) themePick = "auto";
+  applyTheme(themePick);
+  $("themeBar").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-theme-pick]"); if (!b) return;
+    themePick = b.dataset.themePick; store.set(THEME, themePick); applyTheme(themePick);
+    if (state.data && (state.tab === "rank" || state.tab === "deep")) render(); // charts pick their inks up from the theme
+  });
+  if (window.matchMedia) { try { window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => applyTheme(themePick)); } catch (e) {} }
+
   /* ---------- roster clicks ---------- */
   $("entry").addEventListener("click", (e) => {
     const who = e.target.closest("[data-pick]"), drop = e.target.closest("[data-drop]");
     if (drop) removePlayer(Number(drop.dataset.drop));
     else if (who) togglePlayer(Number(who.dataset.pick));
+  });
+  $("copyLink").addEventListener("click", async () => {
+    const link = shareLink();
+    try { await navigator.clipboard.writeText(link); setStatus(location.protocol === "file:" ? "Link copied, but it points at the file on this computer. Use the hosted page to make one that works for others." : "Link copied. Anyone who opens it sees the same players."); }
+    catch (e) { setStatus("Couldn't copy automatically. The link is: " + link); }
   });
   $("refresh").addEventListener("click", () => {
     for (const key of [...memo.keys()]) if (key.startsWith("/v1/analytics/") && key.includes("account_ids=")) { memo.delete(key); skipCache.add(key); }
@@ -4550,8 +4751,7 @@ if (typeof document !== "undefined") (function () {
     else img.hidden = true;
   }, true);
   function setTab(tab) {
-    const known = ["report", "rivalry", "wrapped", "items", "plan", "rank", "player", "achievements", "share", "notes", "deep"].includes(tab);
-    state.tab = known && tabAllowed(tab) ? tab : state.data && state.data.solo ? "player" : "report";
+    state.tab = tabAllowed(tab) ? tab : state.data && state.data.solo ? "player" : "report";
     for (const b of $("tabs").querySelectorAll("button")) b.setAttribute("aria-selected", String(b.dataset.tab === state.tab));
     render();
   }
@@ -4567,6 +4767,13 @@ if (typeof document !== "undefined") (function () {
     else if (sh) { state.sharedOnly = sh.dataset.shared === "1"; render(); }
     else if (sc) { state.scope = sc.dataset.scope; render(); }
     else if (e.target.closest("[data-who]")) { state.who = e.target.closest("[data-who]").dataset.who; render(); }
+    else if (e.target.closest("[data-compare]")) {
+      const b = e.target.closest("[data-compare]"), meId = Number(b.dataset.me), otherId = Number(b.dataset.compare);
+      if (state.busy || !inRoster(meId) || !inRoster(otherId)) return;
+      state.active = [meId, otherId]; state.tab = "report";
+      persist(); renderRoster(); load();
+      window.scrollTo({ top: 0 });
+    }
     else if (e.target.closest("[data-achm]")) {
       const key = e.target.closest("[data-achm]").dataset.achm;
       state.achOpen = state.achOpen === key ? null : key; render();
@@ -4637,8 +4844,9 @@ if (typeof document !== "undefined") (function () {
   }
 
   restore();
+  playersFromLink();
   const startTab = (location.hash || "").slice(1);
-  if (["report", "rivalry", "wrapped", "items", "plan", "rank", "player", "achievements", "share", "notes", "deep"].includes(startTab)) state.tab = startTab;
+  if (TABS.includes(startTab)) state.tab = startTab;
   if (!state.active.length && state.roster.length) state.active = [state.roster[0].id];
   showBlank();
   if (state.active.length) { state.tab = startTab || state.tab; load(); }
