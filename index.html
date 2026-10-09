@@ -652,11 +652,8 @@ footer { border-top: 3px double var(--line); }
 .welcome .cols3 p { color: var(--muted); font-size: 14.5px; }
 @media (max-width: 760px) { .welcome .cols3 { grid-template-columns: 1fr; } }
 /* themes: the picker, and the occult theme's extras */
-.themebar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 14px; margin-bottom: -14px; }
-.themebar .label { letter-spacing: .2em; }
-.themebar button { font: 600 12px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 1px; cursor: pointer; }
-.themebar button:hover { color: var(--fg); }
-.themebar button[aria-pressed="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+.themebar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px 12px; margin-bottom: -12px; }
+.themebar .seg button { padding: 5px 11px; font-size: 13px; }
 :root[data-theme="occult"] body { background-size: 100% 900px; }
 :root[data-theme="occult"] body::before { content: ""; position: fixed; top: -180px; right: -200px; width: 720px; height: 720px; background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-110 -110 220 220' fill='none' stroke='%23c29bff' stroke-width='0.7'><circle r='104'/><circle r='98'/><circle r='62'/><circle r='20'/><path d='M0 -98 L57.6 79.3 L-93.2 -30.3 L93.2 -30.3 L-57.6 79.3 Z'/><path d='M0 -62 L53.7 31 L-53.7 31 Z M0 62 L53.7 -31 L-53.7 -31 Z'/><path d='M-104 0 H-62 M62 0 H104 M0 -104 V-98 M0 98 V104'/><circle cx='0' cy='-80' r='4'/><circle cx='76' cy='-25' r='4'/><circle cx='47' cy='65' r='4'/><circle cx='-47' cy='65' r='4'/><circle cx='-76' cy='-25' r='4'/></svg>") center / contain no-repeat; opacity: .13; pointer-events: none; z-index: 0; }
 :root[data-theme="occult"] .wrap { position: relative; z-index: 1; }
@@ -674,10 +671,12 @@ footer { border-top: 3px double var(--line); }
 
   <div class="themebar" id="themeBar" role="group" aria-label="Theme">
     <span class="label">Theme</span>
-    <button type="button" data-theme-pick="auto">Match device</button>
-    <button type="button" data-theme-pick="light">Newsprint</button>
-    <button type="button" data-theme-pick="dark">Dark</button>
-    <button type="button" data-theme-pick="occult">Occult</button>
+    <div class="seg">
+      <button type="button" data-theme-pick="auto">Match device</button>
+      <button type="button" data-theme-pick="light">Newsprint</button>
+      <button type="button" data-theme-pick="dark">Dark</button>
+      <button type="button" data-theme-pick="occult">Occult</button>
+    </div>
   </div>
   <header class="masthead">
     <div class="mast-main">
@@ -2298,7 +2297,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "22";
+  const VERSION = "23";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -4282,6 +4281,9 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["23", "9 October 2026", [
+      "The theme choices are now a boxed control, so the word \"Theme\" no longer reads as one of them.",
+    ]],
     ["22", "9 October 2026", [
       "Themes: Newsprint, Dark and a new Occult theme, chosen at the top right. \"Match device\" follows your computer's light or dark setting.",
       "Partners tab: one player's record, win rate and grade with every other player in the list, best first, with a Compare link for each.",
