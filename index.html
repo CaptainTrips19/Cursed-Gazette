@@ -292,7 +292,10 @@ section > h2 {
 .bar.a > i { background: var(--amber); }
 .bar.b > i { background: var(--sapphire); }
 .form { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.pip { width: 14px; height: 20px; border-radius: 2px; background: var(--loss); opacity: .55; }
+.pip { width: 14px; height: 20px; border-radius: 2px; background: var(--loss); opacity: .55; border: 0; padding: 0; cursor: pointer; }
+.pip:hover { opacity: 1; transform: translateY(-2px); }
+.pip[aria-pressed="true"] { opacity: 1; outline: 2px solid var(--fg); outline-offset: 2px; }
+.figure .ach-match { margin-top: 10px; }
 .pip.w { background: var(--win); opacity: 1; }
 
 /* duel rows */
@@ -2285,7 +2288,7 @@ if (typeof document !== "undefined") (function () {
   const SAVED = "duo-report-card.saved", ROSTER = "duo-report-card.roster";
   const state = {
     tab: "report", week: null, sharedOnly: false, token: 0, itemsMeta: {},
-    scope: "week", year: null, card: null, cardCtx: null, ranks: null, who: "a", achFilter: "all", notesView: "game", patchPick: null, deepInfo: null, patchInfo: null, patchChecked: null, achOpen: null,
+    scope: "week", year: null, card: null, cardCtx: null, ranks: null, who: "a", achFilter: "all", notesView: "game", patchPick: null, deepInfo: null, patchInfo: null, patchChecked: null, achOpen: null, achSort: "cat", achDesc: true, pipOpen: null,
     days: 0, mode: "normal",
     data: null,          // { A, B, profiles, example, solo }
     roster: [],          // everyone added: { id, name, avatar }
@@ -2297,7 +2300,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "23";
+  const VERSION = "24";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -2609,6 +2612,35 @@ if (typeof document !== "undefined") (function () {
       const note = a.m ? `${a.side ? esc(heroName(a.m.hero_id)) + ", " : ""}${day(a.m.start_time)}` : a.when ? `${a.whenPrefix || ""}${day(a.when)}` : "";
       return `<div class="award"><span class="label">${esc(a.title)}</span><span class="big num">${val}</span><span>${esc(a.unit)}</span>${who}<span class="note">${note}</span></div>`;
     }).join("")}</div>`;
+  }
+
+  /* ---------- one match, opened in place ---------- */
+  /**
+   * rows: [{ side, name, m, note }] where m is that player's own line from their match history; the first row sets the match.
+   * Used under an achievement and under the recent-results blocks.
+   */
+  function matchDetail(rows, heading, note) {
+    const m = rows[0].m, mins = Math.max(1, m.match_duration_s / 60);
+    const mode = m.match_mode === 4 ? "Ranked" : m.game_mode === 4 ? "Street Brawl" : "Standard 6v6";
+    const whenText = new Date(m.start_time * 1000).toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const row = (r) => `<tr><td><span class="${r.side === "a" ? "amber" : "sapphire"}">${esc(r.name)}</span>${r.note ? ` <span class="muted">${r.note}</span>` : ""}</td><td>${heroCell(r.m.hero_id)}</td>
+      <td class="r num">${r.m.player_kills} / ${r.m.player_deaths} / ${r.m.player_assists}</td><td class="r num">${n0(r.m.net_worth)}</td><td class="r num">${n0(r.m.net_worth / mins)}</td><td class="r num">${n0(r.m.last_hits)}</td><td class="r num">${n0(r.m.denies)}</td></tr>`;
+    return `<div class="ach-match">
+      <div class="sub">${heading}</div>
+      ${note ? `<p class="muted">${note}</p>` : ""}
+      <p class="num"><span class="tag ${won(m) ? "win" : "loss"}">${won(m) ? "Win" : "Loss"}</span> &nbsp;${esc(whenText)} · ${mode} · ${clock(m.match_duration_s)} long · match ${m.match_id}</p>
+      <div class="scroll"><table><thead><tr><th>Player</th><th>Hero</th><th class="r">K / D / A</th><th class="r">Souls</th><th class="r">Souls / min</th><th class="r">Last hits</th><th class="r">Denies</th></tr></thead>
+        <tbody>${rows.map(row).join("")}</tbody></table></div>
+      ${state.data.example ? "" : `<div class="actions"><button type="button" class="linkbtn" data-achboard="${m.match_id}" data-team="${m.player_team}">Show the full scoreboard</button></div>`}
+      <div id="achBoard"></div></div>`;
+  }
+  /** The row of win and loss blocks. Each is a button that opens its match underneath. `rowsFor(item)` gives matchDetail's rows. */
+  function resultBlocks(items, rowsFor, tipFor) {
+    const open = items.find((it) => state.pipOpen === state.tab + ":" + rowsFor(it)[0].m.match_id);
+    return { blocks: `<div class="form" aria-label="Recent results">${items.map((it) => {
+        const m = rowsFor(it)[0].m, tip = `${won(m) ? "Win" : "Loss"}, ${tipFor(it)}`;
+        return `<button type="button" class="pip${won(m) ? " w" : ""}" data-pip="${m.match_id}" aria-pressed="${it === open}" title="${esc(tip)}" aria-label="${esc(tip)}. Open this match"></button>`;
+      }).join("")}</div>`, panel: open ? matchDetail(rowsFor(open), "Match details") : "" };
   }
 
   /* ---------- shared bits for the week views ---------- */
@@ -3835,6 +3867,10 @@ if (typeof document !== "undefined") (function () {
     const a = pl.avg, t = pl.totals, pat = pl.patterns;
     const stat = (label, big, note) => `<div class="stat"><span class="label">${label}</span><span class="big num">${big}</span><span class="note">${note}</span></div>`;
     const rank = buildRank(hist, { days: state.days, now });
+    const recent = resultBlocks(pl.form, (m) => {
+      const o = d.solo ? null : (side === "a" ? d.B : d.A).find((x) => x.match_id === m.match_id), os = side === "a" ? "b" : "a";
+      return [{ side, name, m }, ...(o ? [{ side: os, name: d.profiles[os].personaname || "Player", m: o, note: o.player_team === m.player_team ? "" : "(other team)" }] : [])];
+    }, (m) => `${heroName(m.hero_id)}, ${day(m.start_time)}`);
     const out = [head];
     out.push(`<section><h2>Overview</h2>
       ${how("Totals and per-game averages across every game in this view. KDA is kills plus assists, divided by deaths. Souls per minute is the usual measure of how fast someone farms.")}
@@ -3850,8 +3886,9 @@ if (typeof document !== "undefined") (function () {
         ${rank.games ? stat("Rank now", esc(rankName(rank.current.badge)), `peak ${esc(rankName(rank.peak.badge))}`) : ""}
       </div>
       <div class="figure"><span class="label">Last ${pl.form.length} games, newest first</span>
-        <div class="form" aria-label="Recent results">${pl.form.map((m) => `<span class="pip${won(m) ? " w" : ""}" title="${won(m) ? "Win" : "Loss"}, ${esc(heroName(m.hero_id))}, ${day(m.start_time)}"></span>`).join("")}</div>
-        <span class="note">Each block is one game: bright green is a win, faded red a loss. Currently on a ${pl.streak.current}-game ${pl.streak.currentWin ? "winning" : "losing"} run.</span></div>
+        ${recent.blocks}
+        <span class="note">Each block is one game: bright green is a win, faded red a loss. Click a block to open that match. Currently on a ${pl.streak.current}-game ${pl.streak.currentWin ? "winning" : "losing"} run.</span>
+        ${recent.panel}</div>
     </section>`);
 
     out.push(`<section><h2>Heroes</h2>
@@ -3980,23 +4017,19 @@ if (typeof document !== "undefined") (function () {
     const f = state.achFilter;
     out.push(`<div class="filters"><span class="label">Show</span><div class="seg" role="group" aria-label="Which achievements">${[["all", `All ${ach.list.length}`], ["on", `Unlocked ${ach.count}`], ["off", `Locked ${ach.list.length - ach.count}`], ["long", `Long hauls ${ach.list.filter((a) => a.long).length}`], ["near", "Closest to unlocking"]]
       .map(([k, l]) => `<button type="button" data-achf="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div></div>`);
+    // order: by category as usual, or one list by date unlocked or by points, either way round
+    const sort = ["date", "pts"].includes(state.achSort) ? state.achSort : "cat", desc = state.achDesc !== false;
+    const dirWords = sort === "date" ? ["Newest first", "Oldest first"] : ["Highest first", "Lowest first"];
+    if (f !== "near") out.push(`<div class="filters"><span class="label">Order</span><div class="seg" role="group" aria-label="Order">${[["cat", "By category"], ["date", "Date unlocked"], ["pts", "Points"]]
+      .map(([k, l]) => `<button type="button" data-achsort="${k}" aria-pressed="${sort === k}">${l}</button>`).join("")}</div>
+      ${sort === "cat" ? "" : `<div class="seg" role="group" aria-label="Direction"><button type="button" data-achdir="1" aria-pressed="${desc}">${dirWords[0]}</button><button type="button" data-achdir="0" aria-pressed="${!desc}">${dirWords[1]}</button></div>`}</div>`);
 
     // the game behind an unlocked achievement, opened in place
     const partnerById = new Map(d.solo ? [] : otherHist.map((m) => [m.match_id, m]));
     const matchPanel = (a) => {
-      const m = a.match, o = partnerById.get(m.match_id) || null, mins = Math.max(1, m.match_duration_s / 60);
-      const mode = m.match_mode === 4 ? "Ranked" : m.game_mode === 4 ? "Street Brawl" : "Standard 6v6";
-      const whenText = new Date(m.start_time * 1000).toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-      const row = (k, name, x, note) => `<tr><td><span class="${k === "a" ? "amber" : "sapphire"}">${esc(name)}</span>${note ? ` <span class="muted">${note}</span>` : ""}</td><td>${heroCell(x.hero_id)}</td>
-        <td class="r num">${x.player_kills} / ${x.player_deaths} / ${x.player_assists}</td><td class="r num">${n0(x.net_worth)}</td><td class="r num">${n0(x.net_worth / mins)}</td><td class="r num">${n0(x.last_hits)}</td><td class="r num">${n0(x.denies)}</td></tr>`;
-      return `<div class="ach-match">
-        <div class="sub">${a.single ? "The match that did it" : "The match that took it over the line"}</div>
-        ${a.single ? "" : `<p class="muted">This one builds up over many games. This is the game that completed it.</p>`}
-        <p class="num"><span class="tag ${won(m) ? "win" : "loss"}">${won(m) ? "Win" : "Loss"}</span> &nbsp;${esc(whenText)} · ${mode} · ${clock(m.match_duration_s)} long · match ${m.match_id}</p>
-        <div class="scroll"><table><thead><tr><th>Player</th><th>Hero</th><th class="r">K / D / A</th><th class="r">Souls</th><th class="r">Souls / min</th><th class="r">Last hits</th><th class="r">Denies</th></tr></thead>
-          <tbody>${row(side, prof.personaname || "Player", m)}${o ? row(other, d.profiles[other].personaname || "Player", o, o.player_team === m.player_team ? "" : "(other team)") : ""}</tbody></table></div>
-        ${d.example ? "" : `<div class="actions"><button type="button" class="linkbtn" data-achboard="${m.match_id}" data-team="${m.player_team}">Show the full scoreboard</button></div>`}
-        <div id="achBoard"></div></div>`;
+      const m = a.match, o = partnerById.get(m.match_id) || null;
+      return matchDetail([{ side, name: prof.personaname || "Player", m }, ...(o ? [{ side: other, name: d.profiles[other].personaname || "Player", m: o, note: o.player_team === m.player_team ? "" : "(other team)" }] : [])],
+        a.single ? "The match that did it" : "The match that took it over the line", a.single ? "" : "This one builds up over many games. This is the game that completed it.");
     };
     const card = (a) => {
       let meta;
@@ -4017,7 +4050,17 @@ if (typeof document !== "undefined") (function () {
         ${how("The locked achievements this player is furthest through, nearest first. Ones with no running count, such as doing something in a single match, can't be ranked and are left out.")}
         <div class="ach-grid">${near.map((x) => card(x.a)).join("")}</div></section>`);
     }
-    for (const cat of f === "near" ? [] : ACH_CATS) {
+    if (f !== "near" && sort !== "cat") {
+      const pool = ach.list.filter((a) => f === "all" || (f === "long" ? a.long : (f === "on") === a.unlocked));
+      const list = (sort === "date" ? pool.filter((a) => a.unlocked && a.when) : [...pool])
+        .sort((x, y) => (sort === "date" ? x.when - y.when : x.pts - y.pts) * (desc ? -1 : 1) || x.name.localeCompare(y.name));
+      const left = pool.length - list.length;
+      shown = list.length;
+      if (list.length) out.push(`<section><h2>${sort === "date" ? "By date unlocked" : "By points"}, ${dirWords[desc ? 0 : 1].toLowerCase()}</h2>
+        <p class="muted lede num">${list.length} ${list.length === 1 ? "achievement" : "achievements"}.${sort === "date" && left ? ` ${left} locked ${left === 1 ? "one has" : "ones have"} no date and ${left === 1 ? "is" : "are"} left out.` : ""}${sort === "date" ? " The date is the day of the match that unlocked it, so several can share a day." : ""}</p>
+        <div class="ach-grid">${list.map(card).join("")}</div></section>`);
+    }
+    for (const cat of f === "near" || sort !== "cat" ? [] : ACH_CATS) {
       const all = ach.list.filter((a) => a.cat === cat);
       const list = all.filter((a) => f === "all" || (f === "long" ? a.long : (f === "on") === a.unlocked));
       if (!list.length) continue;
@@ -4028,7 +4071,7 @@ if (typeof document !== "undefined") (function () {
         <div class="ach-grid">${list.map(card).join("")}</div>
       </section>`);
     }
-    if (!shown) out.push(`<p class="empty">${f === "on" ? "Nothing unlocked yet." : f === "off" ? "Nothing left to unlock." : f === "near" ? "Nothing part-way through at the moment." : "Nothing to show."}</p>`);
+    if (!shown) out.push(`<p class="empty">${f !== "near" && sort === "date" && f !== "on" ? "Nothing here has an unlock date. Locked achievements can't be put in date order, so choose another order or show the unlocked ones." : f === "on" ? "Nothing unlocked yet." : f === "off" ? "Nothing left to unlock." : f === "near" ? "Nothing part-way through at the moment." : "Nothing to show."}</p>`);
     $("report").innerHTML = out.join("");
   }
   /** All twelve players in one match, for the achievement that is open. Names are shown for anyone in your players list. */
@@ -4281,6 +4324,10 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["24", "11 October 2026", [
+      "Achievements can be put in order by date unlocked or by points, newest or oldest first, highest or lowest first.",
+      "The win and loss blocks on Report card and Player are clickable: each opens that match underneath, with the same details and scoreboard as an achievement's match.",
+    ]],
     ["23", "9 October 2026", [
       "The theme choices are now a boxed control, so the word \"Theme\" no longer reads as one of them.",
     ]],
@@ -4629,6 +4676,7 @@ if (typeof document !== "undefined") (function () {
 
     // together vs apart
     const cur = r.streak.current;
+    const together20 = resultBlocks(r.together.slice(0, 20), (p) => [{ side: "a", name: nameA, m: p.a }, { side: "b", name: nameB, m: p.b }], (p) => `${heroName(p.a.hero_id)} and ${heroName(p.b.hero_id)}, ${day(p.a.start_time)}`);
     out.push(`<section><h2>Together</h2>
       ${how("Your win rate in games on the same team, next to each of your win rates in every other game you played. If the first number is the biggest, you are better together.")}
       <div class="trio">
@@ -4643,8 +4691,9 @@ if (typeof document !== "undefined") (function () {
           <span class="note num">${r.apartB.wins} W · ${r.apartB.losses} L in ${n0(r.apartB.games)} games</span></div>
       </div>
       <div class="figure"><span class="label">Last ${Math.min(20, r.together.length)} together, newest first</span>
-        <div class="form" aria-label="Recent results">${r.together.slice(0, 20).map((p) => `<span class="pip${won(p.a) ? " w" : ""}" title="${won(p.a) ? "Win" : "Loss"}, ${day(p.a.start_time)}"></span>`).join("")}</div>
-        <span class="note">Each block is one game: bright green is a win, faded red a loss. Currently on a ${cur}-game ${r.streak.currentWin ? "winning" : "losing"} run. Best run together: ${r.streak.best} ${r.streak.best === 1 ? "win" : "wins"}.</span></div>
+        ${together20.blocks}
+        <span class="note">Each block is one game: bright green is a win, faded red a loss. Click a block to open that match. Currently on a ${cur}-game ${r.streak.currentWin ? "winning" : "losing"} run. Best run together: ${r.streak.best} ${r.streak.best === 1 ? "win" : "wins"}.</span>
+        ${together20.panel}</div>
     </section>`);
 
     // pairings
@@ -4783,6 +4832,14 @@ if (typeof document !== "undefined") (function () {
       if (openCard) openCard.scrollIntoView({ block: "nearest" });
     }
     else if (e.target.closest("[data-achboard]")) { const b = e.target.closest("[data-achboard]"); b.hidden = true; showBoard(b.dataset.achboard, Number(b.dataset.team)); }
+    else if (e.target.closest("[data-achsort]")) { state.achSort = e.target.closest("[data-achsort]").dataset.achsort; render(); }
+    else if (e.target.closest("[data-achdir]")) { state.achDesc = e.target.closest("[data-achdir]").dataset.achdir === "1"; render(); }
+    else if (e.target.closest("[data-pip]")) {
+      const key = state.tab + ":" + e.target.closest("[data-pip]").dataset.pip;
+      state.pipOpen = state.pipOpen === key ? null : key; render();
+      const panel = document.querySelector("#report .figure .ach-match");
+      if (panel) panel.scrollIntoView({ block: "nearest" });
+    }
     else if (e.target.closest("[data-achf]")) { state.achFilter = e.target.closest("[data-achf]").dataset.achf; render(); }
     else if (yr) { state.year = Number(yr.dataset.year); render(); }
     else if (act) cardAction(act.dataset.cardact);
