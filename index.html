@@ -2144,14 +2144,15 @@ function makeSnapshot(histA, histB, now) {
 }
 function diffSnapshots(base, fresh) {
   const side = (k) => {
-    const had = new Set(base[k].unlocked);
-    return { games: fresh[k].games - base[k].games, score: fresh[k].score - base[k].score, unlocked: fresh[k].unlocked.filter((id) => !had.has(id)) };
+    const had = new Set(base[k].unlocked), has = new Set(fresh[k].unlocked);
+    // "lost" happens when older matches arrive late and break a streak or pull a win rate down
+    return { games: fresh[k].games - base[k].games, score: fresh[k].score - base[k].score, unlocked: fresh[k].unlocked.filter((id) => !had.has(id)), lost: base[k].unlocked.filter((id) => !has.has(id)) };
   };
   const a = side("a"), b = side("b");
   const games = fresh.together.games - base.together.games, wins = fresh.together.wins - base.together.wins;
   const grade = base.grade !== fresh.grade && fresh.grade ? { from: base.grade, to: fresh.grade } : null;
   return { a, b, together: { games, wins, losses: games - wins }, grade,
-    any: a.games > 0 || b.games > 0 || games > 0 || !!grade || a.unlocked.length > 0 || b.unlocked.length > 0 };
+    any: a.games > 0 || b.games > 0 || games > 0 || !!grade || a.unlocked.length > 0 || b.unlocked.length > 0 || a.lost.length > 0 || b.lost.length > 0 };
 }
 
 /* ---------- data export: for tuning thresholds, with nothing that identifies anyone ---------- */
@@ -2300,7 +2301,7 @@ if (typeof document !== "undefined") (function () {
   for (const [id, name] of Object.entries(HERO_FALLBACK)) state.heroes[id] = { name, icon: null };
 
   /* ---------- API ---------- */
-  const VERSION = "24";
+  const VERSION = "25";
   $("version").textContent = "Version " + VERSION + ".";
   const apiLog = []; // every lookup, for the export's diagnostics
   const skipCache = new Set(); // lookups to fetch afresh, past the browser's own short-lived copy
@@ -3779,10 +3780,17 @@ if (typeof document !== "undefined") (function () {
     const nameA = d.profiles.a.personaname || "Player one", nameB = d.profiles.b.personaname || "Player two";
     const eA = esc(nameA), eB = esc(nameB);
     const ra = buildRank(d.A, { days: state.days, now }), rb = buildRank(d.B, { days: state.days, now });
+    // ranked matches played before the game has handed out a rank: the calibration matches
+    const since = state.days ? now - state.days * 86400 : 0;
+    const unrated = (hist) => record(hist.filter((m) => m.match_mode === 4 && !(m.ranked_display_badge > 10) && m.start_time >= since));
+    const ua = unrated(d.A), ub = unrated(d.B);
+    const calibLine = (name, tone, u) => (u.games ? `<p><span class="${tone}">${name}</span> has played <strong class="num">${n0(u.games)}</strong> ranked ${u.games === 1 ? "match" : "matches"} so far (${u.wins} won, ${u.losses} lost) and has no rank yet.</p>` : "");
+    const calibNote = `Deadlock gives a rank only after its calibration matches, ten at the time of writing. Until then there is nothing to chart.`;
     if (!ra.games && !rb.games) {
       $("report").innerHTML = `<section><h2>Rank</h2>
-        <p class="headline">No ranked games on record yet</p>
-        <p class="lede">${d.solo ? "Once there are ranked games on record, this tab charts the rank after every game, the peak, and the biggest climbs and drops."
+        <p class="headline">${ua.games || ub.games ? "Still calibrating" : "No ranked games on record yet"}</p>
+        ${calibLine(eA, "amber", ua)}${d.solo ? "" : calibLine(eB, "sapphire", ub)}
+        <p class="lede">${ua.games || ub.games ? calibNote + " After that, this tab charts the rank after every game, the peak, and the biggest climbs and drops." : d.solo ? "Once there are ranked games on record, this tab charts the rank after every game, the peak, and the biggest climbs and drops."
           : "When either of you plays ranked, this tab charts your rank after every game, your peak, your biggest climbs and drops, and whether queueing together gains or costs you rank."} Nothing to set up: it fills in from the same match history.${state.days ? " You are looking at the last " + state.days + " days, so also try All time." : ""}</p>
       </section>`;
       return;
@@ -3790,7 +3798,7 @@ if (typeof document !== "undefined") (function () {
     const stat = (label, big, note) => `<div class="stat"><span class="label">${label}</span><span class="big num">${big}</span><span class="note">${note}</span></div>`;
     const where = (p) => `${esc(heroName(p.m.hero_id))}, ${day(p.t)}`;
     const col = (key, tone, name, r) => !r.games
-      ? `<div class="col ${key}"><div class="nm ${tone}">${name}</div><p class="empty">No ranked games on record in this view.</p></div>`
+      ? `<div class="col ${key}"><div class="nm ${tone}">${name}</div>${(key === "a" ? ua : ub).games ? calibLine(name, tone, key === "a" ? ua : ub) + `<p class="muted">${calibNote}</p>` : `<p class="empty">No ranked games on record in this view.</p>`}</div>`
       : `<div class="col ${key}"><div class="nm ${tone}">${name}</div><div class="stats">
           ${stat("Rank now", esc(rankName(r.current.badge)), `after ${n0(r.games)} ranked ${r.games === 1 ? "game" : "games"}`)}
           ${stat("Peak", esc(rankName(r.peak.badge)), `reached ${day(r.peak.t)}`)}
@@ -4006,7 +4014,7 @@ if (typeof document !== "undefined") (function () {
       versus = `<div class="sub">Head to head</div><div class="vs">${rows}</div>`;
     }
     out.push(`<section><h2>Score</h2>
-      ${how("A hundred achievements, each worth 5 to 100 points depending on how hard it is. Unlocked ones have a \"See the match\" link that opens the game behind them. The long hauls take months of play, not one good match. They are worked out from every game the Deadlock API has on record for this player, in any mode, so the time period and mode filters don't apply here. Missing matches can only hide an achievement, never grant one.")}
+      ${how("A hundred achievements, each worth 5 to 100 points depending on how hard it is. Unlocked ones have a \"See the match\" link that opens the game behind them. The long hauls take months of play, not one good match. They are worked out from every game the Deadlock API has on record for this player, in any mode, so the time period and mode filters don't apply here. Missing matches usually hide an achievement. Now and then they grant one instead: a winning streak can look longer when a loss in the middle of it hasn't reached the API yet, and it is taken back once that match arrives.")}
       <div class="tally"><span class="pts num">${n0(ach.score)}</span><span class="of muted num">of ${n0(ach.max)} points</span><span class="rank">${esc(ach.title)}</span></div>
       <div><div class="meter" role="img" aria-label="${n0(ach.score)} of ${n0(ach.max)} points"><i style="width:${share * 100}%"></i>${ticks}</div>
         <div class="meter-keys">${keys}</div></div>
@@ -4324,6 +4332,11 @@ if (typeof document !== "undefined") (function () {
 
   /* ---------- patch notes: the game's, and this app's ---------- */
   const APP_NOTES = [
+    ["25", "11 October 2026", [
+      "Rank: ranked matches played before a rank is given are now counted and shown as \"Still calibrating\", instead of the tab saying there are none.",
+      "\"Since you last looked\" now says when an achievement has been taken back, which happens when older matches reach the API late and break a streak or lower a win rate.",
+      "The Achievements page no longer claims that missing matches can never grant an achievement.",
+    ]],
     ["24", "11 October 2026", [
       "Achievements can be put in order by date unlocked or by points, newest or oldest first, highest or lowest first.",
       "The win and loss blocks on Report card and Player are clickable: each opens that match underneath, with the same details and scoreboard as an achievement's match.",
@@ -4543,6 +4556,10 @@ if (typeof document !== "undefined") (function () {
     for (const k of sides) {
       const got = sn.diff[k].unlocked.map((id) => achNames[id]).filter(Boolean);
       if (got.length) lines.push(`${who(k)} unlocked ${got.slice(0, 6).map((a) => `<strong>${esc(a.name)}</strong> (${a.pts})`).join(", ")}${got.length > 6 ? ` and ${got.length - 6} more` : ""}${got.length > 1 ? `, for ${n0(got.reduce((sum, a) => sum + a.pts, 0))} points in all` : ""}.`);
+    }
+    for (const k of sides) {
+      const gone = (sn.diff[k].lost || []).map((id) => achNames[id]).filter(Boolean);
+      if (gone.length) lines.push(`${who(k)} no longer has ${gone.slice(0, 6).map((a) => `<strong>${esc(a.name)}</strong>`).join(", ")}${gone.length > 6 ? ` and ${gone.length - 6} more` : ""}. Newly recorded matches changed the figures behind ${gone.length === 1 ? "it" : "them"}, usually an older game that has only just reached the API.`);
     }
     if (!lines.length) { el.hidden = true; return; }
     const when = new Date(sn.time * 1000).toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
